@@ -16,7 +16,7 @@ define('DB_NAME', getenv('MYSQLDATABASE') ?: 'whatsapp_crm');
 // App Configuration
 define('APP_NAME', 'WhatsApp Lead Grabber CRM');
 define('BASE_URL', getenv('BASE_URL') ?: 'http://localhost:8080/');
-define('BACKEND_URL', getenv('BACKEND_URL') ?: 'http://localhost:3000'); // Default to local for dev
+define('BACKEND_URL', getenv('BACKEND_URL') ?: 'https://leads-whatsapp-production.up.railway.app'); // Production fallback
 
 // Secret for PHP-Node communication
 define('WORKER_API_SECRET', getenv('WORKER_API_SECRET') ?: 'whatsapp_crm_secret_2026');
