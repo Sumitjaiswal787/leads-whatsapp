@@ -43,9 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $res = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
-            $response = ['status' => 'success', 'message' => 'Session initialized', 'session_id' => $logical_id];
+            if ($http_code === 200) {
+                $response = ['status' => 'success', 'message' => 'Session initialized', 'session_id' => $logical_id];
+            } else {
+                $response['message'] = "Backend Error ($http_code): " . ($res ?: 'No response');
+            }
         }
     }
 }
