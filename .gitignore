@@ -1,7 +1,6 @@
 # PHP
 composer.lock
 vendor/
-config/config.php
 sessions/
 uploads/
 

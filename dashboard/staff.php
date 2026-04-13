@@ -112,7 +112,7 @@ $tenant_id = getTenantId();
 
 <script>
 let currentLeadId = null;
-const socket = io('http://localhost:3000');
+const socket = io('<?= BACKEND_URL ?>');
 
 function loadLeads() {
     $.get('../api/get-leads.php', function(res) {

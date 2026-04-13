@@ -262,7 +262,7 @@ $staff_limit = $plan['max_staff'];
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
 
 <script>
-const socket = io('http://localhost:3000');
+const socket = io('<?= BACKEND_URL ?>');
 
 function loadSessions() {
     $.get('../api/get-sessions.php', function(res) {
