@@ -49,8 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($http_code === 200) {
                 $response = ['status' => 'success', 'message' => 'Session initialized', 'session_id' => $logical_id];
             } else {
-                $response['message'] = "Backend Error ($http_code): " . ($res ?: 'No response');
+                $response['message'] = "Backend Error ($http_code): " . ($res ?: $err ?: 'No response');
+                $response['debug_url'] = BACKEND_URL;
             }
+            curl_close($ch);
         }
     }
 }
