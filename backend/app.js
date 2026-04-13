@@ -18,6 +18,7 @@ const io = new Server(httpServer, {
             "http://127.0.0.1:8080",
             "http://127.0.0.1:3000",
             "http://localhost", 
+            "https://whatsapp.tezikaro.com",
             "https://leads-whatsapp-crm.vercel.app"
         ],
         methods: ["GET", "POST"],
@@ -25,7 +26,10 @@ const io = new Server(httpServer, {
     }
 });
 
-app.use(cors());
+app.use(cors({
+    origin: ["https://whatsapp.tezikaro.com", "http://localhost:3000", "http://localhost:8080"],
+    credentials: true
+}));
 app.use(express.json());
 
 // Set socket for session manager
