@@ -3,21 +3,36 @@
  * WhatsApp Lead Grabber CRM - Global Configuration
  */
 
-// Error Reporting
+// Error Reporting (Production)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // SILENCE: Prevent errors from breaking JSON
+ini_set('log_errors', 1);
 
-// Database Configuration (Cloud)
-define('DB_HOST', getenv('MYSQLHOST') ?: 'autorack.proxy.rlwy.net');
-define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ZkvkgZgMCzgPirrOwyoVDqpNZYOTffVj');
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
-define('DB_PORT', getenv('MYSQLPORT') ?: 36908);
+// Database Configuration (Dynamic Environment Detection)
+$is_local = (isset($_SERVER['HTTP_HOST']) && ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === 'localhost:8080' || $_SERVER['HTTP_HOST'] === '127.0.0.1')) 
+            || (php_sapi_name() === 'cli'); 
+
+if ($is_local) {
+    // LOCAL SETTINGS (XAMPP / Local Dev)
+    define('DB_HOST', 'localhost');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
+    define('DB_NAME', 'whatsapp_crm');
+    define('BASE_URL', 'http://localhost:8080/');
+    define('BACKEND_URL', 'http://localhost:3000');
+} else {
+    // HOSTINGER SETTINGS (Production)
+    define('DB_HOST', 'localhost');
+    define('DB_USER', 'u828453283_whats');
+    define('DB_PASS', 'Sumit@787870');
+    define('DB_NAME', 'u828453283_whats');
+    define('BASE_URL', getenv('BASE_URL') ?: 'https://leads-whatsapp-crm.vercel.app/'); // User should update this
+    define('BACKEND_URL', 'https://leads-whatsapp-backend-production.up.railway.app');
+}
+define('DB_PORT', 3306);
 
 // App Configuration
 define('APP_NAME', 'WhatsApp Lead Grabber CRM');
-define('BASE_URL', getenv('BASE_URL') ?: 'http://localhost:8080/');
-define('BACKEND_URL', getenv('BACKEND_URL') ?: 'https://leads-whatsapp-backend-production.up.railway.app'); // Production standalone backend
 
 // Secret for PHP-Node communication
 define('WORKER_API_SECRET', getenv('WORKER_API_SECRET') ?: 'whatsapp_crm_secret_2026');
@@ -47,6 +62,12 @@ try {
 function checkAuth($role = null)
 {
     if (!isset($_SESSION['user_id'])) {
+        // If this is an AJAX request, return JSON instead of redirecting
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'Your session has expired. Please log in again.', 'redirect' => true]);
+            exit();
+        }
         header("Location: " . BASE_URL . "index.php");
         exit();
     }

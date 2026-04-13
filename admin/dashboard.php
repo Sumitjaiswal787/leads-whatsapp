@@ -255,6 +255,49 @@ $staff_limit = $plan['max_staff'];
         </form>
     </div>
 </div>
+    <style>
+        #socket-debug-console {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 350px;
+            height: 200px;
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            padding: 10px;
+            overflow-y: auto;
+            border-top-left-radius: 8px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+            z-index: 9999;
+            opacity: 0.9;
+            display: none;
+        }
+        #socket-debug-console.active { display: block; }
+        .log-entry { margin-bottom: 2px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        .log-time { color: #888; margin-right: 5px; }
+        .log-error { color: #ff5555; }
+        .log-success { color: #55ff55; }
+        .log-warn { color: #ffff55; }
+        
+        .status-badge { font-weight: 600; text-transform: uppercase; font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; }
+        .status-connected { background: #d1fae5; color: #065f46; }
+        .status-disconnected { background: #fee2e2; color: #991b1b; }
+        .status-initializing { background: #fef3c7; color: #92400e; }
+    </style>
+
+    <div id="socket-debug-console">
+        <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary pb-1">
+            <span class="fw-bold">Socket Debugger</span>
+            <button class="btn btn-close btn-close-white" style="font-size: 10px;" onclick="$('#socket-debug-console').removeClass('active')"></button>
+        </div>
+        <div id="debug-logs"></div>
+    </div>
+
+    <button class="btn btn-dark position-fixed bottom-0 end-0 m-3 rounded-circle shadow" style="width: 40px; height: 40px; z-index: 9998;" onclick="$('#socket-debug-console').toggleClass('active')" title="Toggle Socket Debugger">
+        <i class="bi bi-terminal"></i>
+    </button>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -262,11 +305,57 @@ $staff_limit = $plan['max_staff'];
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
 
 <script>
-const socket = io('<?= BACKEND_URL ?>');
+function logDebug(msg, type = 'info') {
+    const time = new Date().toLocaleTimeString();
+    const colorClass = type === 'error' ? 'log-error' : (type === 'success' ? 'log-success' : (type === 'warn' ? 'log-warn' : ''));
+    $('#debug-logs').prepend(`<div class="log-entry ${colorClass}"><span class="log-time">[${time}]</span> ${msg}</div>`);
+    console.log(`[SocketDebug] ${msg}`);
+}
+
+// Global init function
+window.initSession = function(sessionId) {
+    logDebug(`Manually triggering init for ${sessionId}...`, 'info');
+    const btn = $(`#btn-init-${sessionId}`);
+    const originalHtml = btn.html();
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Starting...');
+    
+    // We reuse create-session.php since it's already set up to hit the backend
+    $.post('../api/create-session.php', { force_init: true, session_id: sessionId }, function(res) {
+        logDebug(`Init response for ${sessionId}: ${typeof res === 'object' ? JSON.stringify(res) : res}`, 'success');
+        // Handle both string and object responses
+        const data = typeof res === 'object' ? res : JSON.parse(res);
+        if (data.status === 'success' || data.success) {
+            logDebug(`Session ${sessionId} initialization signal sent successfully.`, 'success');
+        } else {
+            alert('Error: ' + (data.message || data.error || 'Unknown error'));
+            btn.prop('disabled', false).html(originalHtml);
+        }
+    }).fail(function(err) {
+        logDebug(`Init FAILED for ${sessionId}`, 'error');
+        btn.prop('disabled', false).html(originalHtml);
+    });
+};
+
+// Socket Events
+logDebug('Connecting to Socket.io: <?= BACKEND_URL ?>', 'info');
+const socket = io('<?= BACKEND_URL ?>', { 
+    transports: ['polling', 'websocket'],
+    reconnectionAttempts: 10,
+    timeout: 20000
+});
+
+socket.on('connect', () => {
+    logDebug('Socket Connected! ID: ' + socket.id, 'success');
+    loadSessions(); // Reload to ensure rooms are joined and subscriptions are fresh
+});
+
+socket.on('connect_error', (err) => {
+    logDebug('Socket Connection Error: ' + err.message, 'error');
+});
 
 function loadSessions() {
     $.get('../api/get-sessions.php', function(res) {
-        const sessions = JSON.parse(res);
+        const sessions = typeof res === 'object' ? res : JSON.parse(res);
         let html = '';
         sessions.forEach(s => {
             html += `
@@ -284,13 +373,22 @@ function loadSessions() {
                         <div class="qr-placeholder" id="qr-container-${s.session_id}">
                             ${s.status === 'connected' ? '<i class="bi bi-check-circle text-success fs-1"></i>' : '<p class="mb-0 text-muted">Awaiting QR...</p>'}
                         </div>
-                        <div class="text-center mt-3">
-                            <small class="text-secondary">ID: ${s.session_id}</small>
+                        <div class="mt-3">
+                            ${s.status !== 'connected' ? `
+                                <button class="btn btn-primary w-100 btn-sm" onclick="initSession('${s.session_id}')" id="btn-init-${s.session_id}">
+                                    <i class="bi bi-play-circle"></i> Initialize / Refresh QR
+                                </button>
+                            ` : `
+                                <button class="btn btn-outline-secondary w-100 btn-sm" disabled>
+                                    <i class="bi bi-check2-all"></i> Active
+                                </button>
+                            `}
                         </div>
                     </div>
                 </div>
             `;
             // Subscribe to this session's events
+            logDebug('Subscribing to room: ' + s.session_id);
             socket.emit('subscribe', s.session_id);
         });
         $('#sessionList').html(html || '<div class="col-12 text-center text-muted">No sessions yet</div>');
@@ -299,7 +397,7 @@ function loadSessions() {
 
 function loadStaff() {
     $.get('../api/get-staff.php', function(res) {
-        const staff = JSON.parse(res);
+        const staff = typeof res === 'object' ? res : JSON.parse(res);
         let html = '';
         staff.forEach(u => {
             html += `
@@ -315,23 +413,40 @@ function loadStaff() {
     });
 }
 
-// Socket Events
 socket.on('qr', function(data) {
-    console.log('QR Received for', data.sessionId);
+    logDebug('QR Received for ' + data.sessionId, 'success');
     const container = $(`#qr-container-${data.sessionId}`);
-    QRCode.toCanvas(data.qr, { width: 180 }, function (error, canvas) {
-        if (!error) {
-            container.empty().append(canvas);
-        }
-    });
+    if (container.length) {
+        QRCode.toCanvas(data.qr, { width: 180 }, function (error, canvas) {
+            if (!error) {
+                container.empty().append(canvas);
+            }
+        });
+    }
     $(`#status-${data.sessionId}`).text('Awaiting Scan').removeClass('status-connected').addClass('status-disconnected');
+});
+
+socket.on('status', function(data) {
+    logDebug(`Status update for ${data.sessionId}: ${data.status}`, 'warn');
+    const badge = $(`#status-${data.sessionId}`);
+    badge.text(data.status);
+    if (data.status === 'connected') {
+        badge.removeClass('status-disconnected status-initializing').addClass('status-connected');
+        $(`#qr-container-${data.sessionId}`).html('<i class="bi bi-check-circle text-success fs-1"></i>');
+        $(`#btn-init-${data.sessionId}`).parent().html('<button class="btn btn-outline-secondary w-100 btn-sm" disabled><i class="bi bi-check2-all"></i> Active</button>');
+    } else if (data.status === 'initializing') {
+        badge.removeClass('status-disconnected status-connected').addClass('status-initializing');
+        $(`#qr-container-${data.sessionId}`).html('<div class="spinner-border spinner-border-sm text-primary"></div><p class="mt-2 mb-0 small">Connecting Baileys...</p>');
+    } else {
+        badge.removeClass('status-connected status-initializing').addClass('status-disconnected');
+    }
 });
 
 function deleteSession(sessionId) {
     if (!confirm('Are you sure you want to delete this session? This will log out the WhatsApp account and remove all local data.')) return;
     
     $.post('../api/delete-session.php', { session_id: sessionId }, function(res) {
-        const data = JSON.parse(res);
+        const data = typeof res === 'object' ? res : JSON.parse(res);
         if (data.status === 'success') {
             loadSessions();
         } else {
@@ -340,21 +455,10 @@ function deleteSession(sessionId) {
     });
 }
 
-socket.on('status', function(data) {
-    const badge = $(`#status-${data.sessionId}`);
-    badge.text(data.status);
-    if (data.status === 'connected') {
-        badge.removeClass('status-disconnected').addClass('status-connected');
-        $(`#qr-container-${data.sessionId}`).html('<i class="bi bi-check-circle text-success fs-1"></i>');
-    } else {
-        badge.removeClass('status-connected').addClass('status-disconnected');
-    }
-});
-
 $('#addSessionForm').on('submit', function(e) {
     e.preventDefault();
     $.post('../api/create-session.php', $(this).serialize(), function(res) {
-        const data = JSON.parse(res);
+        const data = typeof res === 'object' ? res : JSON.parse(res);
         if (data.status === 'success') {
             $('#addSessionModal').modal('hide');
             loadSessions();
@@ -367,7 +471,7 @@ $('#addSessionForm').on('submit', function(e) {
 $('#addStaffForm').on('submit', function(e) {
     e.preventDefault();
     $.post('../api/add-staff.php', $(this).serialize(), function(res) {
-        const data = JSON.parse(res);
+        const data = typeof res === 'object' ? res : JSON.parse(res);
         if (data.status === 'success') {
             $('#addStaffModal').modal('hide');
             loadStaff();
@@ -378,7 +482,7 @@ $('#addStaffForm').on('submit', function(e) {
 });
 
 $(document).ready(function() {
-    loadSessions();
+    // Note: loadSessions() is now called inside socket.on('connect') to ensure subscription is fresh
     loadStaff();
 });
 </script>
