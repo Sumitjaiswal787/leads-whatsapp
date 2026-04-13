@@ -7,11 +7,12 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database Configuration
-define('DB_HOST', getenv('MYSQLHOST') ?: 'localhost');
+// Database Configuration (Cloud)
+define('DB_HOST', getenv('MYSQLHOST') ?: 'autorack.proxy.rlwy.net');
 define('DB_USER', getenv('MYSQLUSER') ?: 'root');
-define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'whatsapp_crm');
+define('DB_PASS', getenv('MYSQLPASSWORD') ?: 'ZkvkgZgMCzgPirrOwyoVDqpNZYOTffVj');
+define('DB_NAME', getenv('MYSQLDATABASE') ?: 'railway');
+define('DB_PORT', getenv('MYSQLPORT') ?: 36908);
 
 // App Configuration
 define('APP_NAME', 'WhatsApp Lead Grabber CRM');
@@ -32,7 +33,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // Database Connection
 try {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
     if ($conn->connect_error) {
         throw new Exception("Connection failed: " . $conn->connect_error);
     }
