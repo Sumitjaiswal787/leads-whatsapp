@@ -224,10 +224,11 @@ class SessionManager {
 
         console.log(`[LEAD] from=${from} | name=${name} | jid=${jid}`);
 
+        const callbackUrl = process.env.PHP_CALLBACK_URL || 'http://localhost:8080';
         // Send to PHP via webhook
         try {
             const axios = (await import('axios')).default;
-            await axios.post('http://localhost:8080/api/callback.php', {
+            await axios.post(`${callbackUrl}/api/callback.php`, {
                 tenant_id: tenantId,
                 session_id: sessionId,
                 jid: msg.key.remoteJid, // Full JID
@@ -245,9 +246,10 @@ class SessionManager {
     }
 
     async notifyPHP(tenantId, sessionId, status) {
+        const callbackUrl = process.env.PHP_CALLBACK_URL || 'http://localhost:8080';
         try {
             const axios = (await import('axios')).default;
-            await axios.post('http://localhost:8080/api/callback.php', {
+            await axios.post(`${callbackUrl}/api/callback.php`, {
                 tenant_id: tenantId,
                 session_id: sessionId,
                 event: 'status_update',

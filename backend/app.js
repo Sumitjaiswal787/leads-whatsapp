@@ -96,16 +96,17 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, async () => {
     console.log(`Backend server running on port ${PORT}`);
     
     try {
         const connection = await mysql.createConnection({
-            host: 'localhost',
-            user: 'root',
-            password: '',
-            database: 'whatsapp_crm'
+            host: process.env.MYSQLHOST || 'localhost',
+            user: process.env.MYSQLUSER || 'root',
+            password: process.env.MYSQLPASSWORD || '',
+            database: process.env.MYSQLDATABASE || 'whatsapp_crm',
+            port: process.env.MYSQLPORT || 3306
         });
         
         const [rows] = await connection.execute('SELECT tenant_id, session_id FROM whatsapp_sessions');
