@@ -12,9 +12,13 @@ $query = "
         l.*, 
         u.full_name as staff_name 
     FROM leads l
-    LEFT JOIN users u ON l.assigned_to = u.id
+    LEFT JOIN users u ON l.staff_id = u.id
     WHERE l.tenant_id = ?
 ";
+
+if ($tenant_id === null) {
+    $tenant_id = 1; // Default to tenant 1 for safety
+}
 
 $params = [$tenant_id];
 $types = "i";

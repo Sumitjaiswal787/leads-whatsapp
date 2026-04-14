@@ -45,6 +45,35 @@ app.get('/', (req, res) => {
     res.send('WhatsApp CRM Backend is running. Time: ' + new Date().toISOString());
 });
 
+// Diagnostic endpoint to test connectivity to Hostinger
+app.get('/test-callback', async (req, res) => {
+    const callbackUrl = process.env.PHP_CALLBACK_URL || 'http://localhost:8080';
+    try {
+        const axios = (await import('axios')).default;
+        console.log(`[Test] Attempting to reach: ${callbackUrl}/api/callback.php`);
+        const response = await axios.post(`${callbackUrl}/api/callback.php`, {
+            event: 'connectivity_test',
+            secret: 'whatsapp_crm_secret_2026',
+            timestamp: new Date().toISOString()
+        }, { timeout: 10000 });
+        
+        res.json({
+            status: 'connected',
+            callbackUrl,
+            php_response: response.data,
+            message: 'Railway reached Hostinger successfully!'
+        });
+    } catch (error) {
+        console.error(`[Test] Failed to reach ${callbackUrl}:`, error.message);
+        res.status(500).json({
+            status: 'failed',
+            callbackUrl,
+            error: error.message,
+            hint: 'Check if PHP_CALLBACK_URL is set correctly in Railway and if Hostinger allows incoming requests.'
+        });
+    }
+});
+
 // Create/Connect Session
 app.post('/api/sessions/init', async (req, res) => {
     const { tenantId, sessionId, secret } = req.body;

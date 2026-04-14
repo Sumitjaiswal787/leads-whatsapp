@@ -26,7 +26,7 @@ if ($is_local) {
     define('DB_USER', 'u828453283_whats');
     define('DB_PASS', 'Sumit@787870');
     define('DB_NAME', 'u828453283_whats');
-    define('BASE_URL', getenv('BASE_URL') ?: 'https://leads-whatsapp-crm.vercel.app/'); // User should update this
+    define('BASE_URL', 'https://whatsapp.tezikaro.com/'); 
     define('BACKEND_URL', 'https://leads-whatsapp-backend-production.up.railway.app');
 }
 define('DB_PORT', 3306);
@@ -53,7 +53,13 @@ try {
         throw new Exception("Connection failed: " . $conn->connect_error);
     }
 } catch (Exception $e) {
-    die("Database Connection Error: " . $e->getMessage());
+    // For debugging 500 errors, we temporarily enable error display if connection fails
+    if (!isset($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+        die("Database Connection Error: " . $e->getMessage());
+    }
+    header('Content-Type: application/json');
+    echo json_encode(['status' => 'error', 'message' => 'Database connection failed']);
+    exit;
 }
 
 /**
@@ -99,7 +105,18 @@ function checkAuth($role = null)
  */
 function getTenantId()
 {
-    return $_SESSION['role'] === 'admin' ? $_SESSION['user_id'] : ($_SESSION['tenant_id'] ?? null);
+    if (!isset($_SESSION['role'])) return null;
+    
+    if ($_SESSION['role'] === 'admin') {
+        return $_SESSION['user_id'];
+    }
+    
+    // For Super Admin, we default to Tenant 1 if they haven't picked one
+    if ($_SESSION['role'] === 'superadmin') {
+        return $_SESSION['active_tenant_id'] ?? 1;
+    }
+    
+    return $_SESSION['tenant_id'] ?? 1;
 }
 
 /**
@@ -115,8 +132,11 @@ function getTenantPlan($tenant_id)
             WHERE s.tenant_id = ? AND s.status != 'pending'
             ORDER BY s.created_at DESC LIMIT 1";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $tenant_id);
-    $stmt->execute();
-    return $stmt->get_result()->fetch_assoc();
+    if ($stmt) {
+        $stmt->bind_param("i", $tenant_id);
+        $stmt->execute();
+        return $stmt->get_result()->fetch_assoc();
+    }
+    return null;
 }
 ?>

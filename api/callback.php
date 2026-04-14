@@ -2,7 +2,11 @@
 require_once '../config/config.php';
 
 // Raw input from Node.js
-$input = json_decode(file_get_contents('php://input'), true);
+$raw_input = file_get_contents('php://input');
+$input = json_decode($raw_input, true);
+
+// DEBUG LOG: Record the hit
+file_put_contents('callback_log.txt', "[" . date('Y-m-d H:i:s') . "] Raw: " . $raw_input . PHP_EOL, FILE_APPEND);
 
 if (!$input || ($input['secret'] ?? '') !== WORKER_API_SECRET) {
     http_response_code(401);

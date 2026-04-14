@@ -178,7 +178,7 @@ function loadLeads() {
                         <td><span class="status-badge status-${l.status}">${l.status}</span></td>
                         <td><small>${l.staff_name || 'Unassigned'}</small></td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary py-0" onclick="openAssignModal(${l.id}, ${l.assigned_to || 'null'})" title="Assign">
+                            <button class="btn btn-sm btn-outline-primary py-0" onclick="openAssignModal(${l.id}, ${l.staff_id || 'null'})" title="Assign">
                                 <i class="bi bi-person-check"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteLead(${l.id})" title="Delete">

@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt_verify->execute();
     if ($stmt_verify->get_result()->num_rows > 0) {
         
-        $stmt_assign = $conn->prepare("UPDATE leads SET assigned_to = ? WHERE id = ?");
+        $stmt_assign = $conn->prepare("UPDATE leads SET staff_id = ? WHERE id = ?");
         $stmt_assign->bind_param("ii", $staff_id, $lead_id);
         
         if ($stmt_assign->execute()) {
