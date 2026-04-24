@@ -33,9 +33,42 @@ $staff_limit = $plan['max_staff'];
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #25D366; --dark: #121212; --card-bg: #1e1e1e; }
-        body { font-family: 'Outfit', sans-serif; background: var(--dark); color: #fff; margin-bottom: 50px; }
-        .sidebar { background: #181818; min-height: 100vh; position: fixed; width: 250px; border-right: 1px solid #333; }
-        .main-content { margin-left: 250px; padding: 40px; }
+        body { font-family: 'Outfit', sans-serif; background: var(--dark); color: #fff; margin-bottom: 50px; overflow-x: hidden; }
+        
+        .sidebar { 
+            background: #181818; 
+            min-height: 100vh; 
+            position: fixed; 
+            width: 250px; 
+            border-right: 1px solid #333; 
+            z-index: 1001;
+            transition: all 0.3s;
+        }
+        
+        .main-content { 
+            margin-left: 250px; 
+            padding: 40px; 
+            transition: all 0.3s;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                margin-left: -250px;
+            }
+            .sidebar.show {
+                margin-left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+                padding-top: 80px;
+            }
+            .stat-card {
+                padding: 15px;
+            }
+        }
+
         .stat-card { background: var(--card-bg); border-radius: 15px; padding: 25px; border: 1px solid #333; transition: transform 0.3s; }
         .stat-card:hover { transform: translateY(-5px); }
         .stat-icon { font-size: 2.5rem; color: var(--primary); opacity: 0.8; }
@@ -56,6 +89,41 @@ $staff_limit = $plan['max_staff'];
             background: rgba(0,0,0,0.9); z-index: 9999;
             display: flex; align-items: center; justify-content: center;
             text-align: center; backdrop-filter: blur(10px);
+        }
+        
+        /* Mobile Navbar */
+        .mobile-nav {
+            display: none;
+            background: #181818;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+
+        @media (max-width: 991.98px) {
+            .mobile-nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .sidebar-overlay.show {
+            display: block;
         }
     </style>
 </head>
@@ -78,8 +146,19 @@ $staff_limit = $plan['max_staff'];
 </div>
 <?php endif; ?>
 
-<div class="sidebar d-none d-lg-block">
-    <div class="p-4 text-center">
+<!-- Mobile Navbar -->
+<div class="mobile-nav">
+    <h4 class="fw-bold text-primary mb-0">Grabber</h4>
+    <button class="btn text-white p-0" id="sidebarToggle">
+        <i class="bi bi-list fs-2"></i>
+    </button>
+</div>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="sidebar" id="sidebar">
+    <div class="p-4 text-center d-none d-lg-block">
         <h3 class="fw-bold text-primary">Grabber</h3>
     </div>
     <div class="list-group list-group-flush mt-4">
@@ -88,6 +167,9 @@ $staff_limit = $plan['max_staff'];
         </a>
         <a href="#sessions" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
             <i class="bi bi-whatsapp me-2"></i> WhatsApp Sessions
+        </a>
+        <a href="meta_settings.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
+            <i class="bi bi-facebook me-2"></i> Meta Settings
         </a>
         <a href="leads_v2.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
             <i class="bi bi-people me-2"></i> Leads
@@ -102,14 +184,16 @@ $staff_limit = $plan['max_staff'];
 </div>
 
 <div class="main-content">
-    <div class="d-flex justify-content-between align-items-center mb-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3">
         <div>
             <h1 class="fw-bold mb-1">Overview</h1>
             <p class="text-secondary">Welcome back, <?= $_SESSION['username'] ?></p>
         </div>
-        <button class="btn btn-primary px-4 py-2" data-bs-toggle="modal" data-bs-target="#addSessionModal">
-            <i class="bi bi-plus-lg me-2"></i> New Session
-        </button>
+        <div>
+            <button class="btn btn-primary px-4 py-2 w-100" data-bs-toggle="modal" data-bs-target="#addSessionModal">
+                <i class="bi bi-plus-lg me-2"></i> New Session
+            </button>
+        </div>
     </div>
 
     <!-- Plan Usage -->
@@ -194,6 +278,7 @@ $staff_limit = $plan['max_staff'];
                     <tr>
                         <th>Name</th>
                         <th>Username</th>
+                        <th>Auto Assign</th>
                         <th>Joined</th>
                         <th>Action</th>
                     </tr>
@@ -400,10 +485,16 @@ function loadStaff() {
         const staff = typeof res === 'object' ? res : JSON.parse(res);
         let html = '';
         staff.forEach(u => {
+            const checked = u.is_active_for_leads == 1 ? 'checked' : '';
             html += `
                 <tr>
                     <td>${u.full_name}</td>
                     <td>${u.username}</td>
+                    <td>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input assign-toggle" type="checkbox" data-id="${u.id}" ${checked}>
+                        </div>
+                    </td>
                     <td>${u.created_at}</td>
                     <td><button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button></td>
                 </tr>
@@ -481,7 +572,36 @@ $('#addStaffForm').on('submit', function(e) {
     });
 });
 
+$(document).on('change', '.assign-toggle', function() {
+    const staffId = $(this).data('id');
+    const isChecked = $(this).is(':checked') ? 1 : 0;
+    
+    $.post('../api/toggle-staff-assignment.php', {
+        staff_id: staffId,
+        status: isChecked
+    }, function(res) {
+        const data = typeof res === 'object' ? res : JSON.parse(res);
+        if (data.status !== 'success') {
+            alert(data.message);
+            // Revert on failure
+            loadStaff();
+        }
+    });
+});
+
 $(document).ready(function() {
+    // Sidebar Toggle
+    $('#sidebarToggle, #sidebarOverlay').on('click', function() {
+        $('#sidebar, #sidebarOverlay').toggleClass('show');
+    });
+
+    // Close sidebar when clicking a link on mobile
+    $('.sidebar .list-group-item').on('click', function() {
+        if ($(window).width() < 992) {
+            $('#sidebar, #sidebarOverlay').removeClass('show');
+        }
+    });
+
     // Note: loadSessions() is now called inside socket.on('connect') to ensure subscription is fresh
     loadStaff();
 });

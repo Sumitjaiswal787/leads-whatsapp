@@ -16,37 +16,85 @@ $tenant_id = getTenantId();
     <style>
         :root { --primary: #25D366; --dark: #121212; --card-bg: #1e1e1e; }
         body { font-family: 'Outfit', sans-serif; background: var(--dark); color: #fff; height: 100vh; overflow: hidden; }
-        .main-wrapper { display: flex; height: 100vh; }
-        .leads-sidebar { width: 350px; background: #181818; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .chat-area { flex-grow: 1; display: flex; flex-direction: column; background: #0b141a; }
+        .main-wrapper { display: flex; height: 100vh; position: relative; }
+        
+        .leads-sidebar { 
+            width: 350px; 
+            background: #181818; 
+            border-right: 1px solid #333; 
+            display: flex; 
+            flex-direction: column; 
+            transition: all 0.3s;
+            z-index: 10;
+        }
+        
+        .chat-area { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            background: #0b141a; 
+            position: relative;
+        }
+
+        /* Mobile View Logic */
+        @media (max-width: 767.98px) {
+            .leads-sidebar {
+                width: 100%;
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+            .chat-area {
+                width: 100%;
+                position: absolute;
+                left: 0;
+                top: 0;
+                display: none; /* Hidden by default on mobile until lead selected */
+            }
+            .chat-area.show-mobile {
+                display: flex !important;
+            }
+            .leads-sidebar.hide-mobile {
+                display: none !important;
+            }
+        }
+
         .leads-list { overflow-y: auto; flex-grow: 1; }
         .lead-item { padding: 15px 20px; border-bottom: 1px solid #222; cursor: pointer; transition: background 0.2s; }
         .lead-item:hover { background: #252525; }
         .lead-item.active { background: #2d2d2d; border-left: 4px solid var(--primary); }
         .lead-name { font-weight: 600; margin-bottom: 2px; }
         .lead-last-msg { font-size: 0.85rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .chat-header { padding: 15px 25px; background: #202c33; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header { padding: 10px 15px; background: #202c33; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .chat-messages { flex-grow: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 70%; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; line-height: 1.4; }
+        .msg { max-width: 85%; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; line-height: 1.4; }
         .msg-in { align-self: flex-start; background: #202c33; color: #e9edef; border-bottom-left-radius: 0; }
         .msg-out { align-self: flex-end; background: #005c4b; color: #e9edef; border-bottom-right-radius: 0; }
-        .chat-input { padding: 20px; background: #202c33; border-top: 1px solid #333; }
+        .chat-input { padding: 15px; background: #202c33; border-top: 1px solid #333; }
         .form-control { background: #2a3942; border: none; color: #fff; border-radius: 25px; padding: 10px 20px; }
         .form-control:focus { background: #33434d; color: #fff; box-shadow: none; }
         .badge-hot { background: #dc3545; }
         .badge-warm { background: #ffc107; color: #000; }
         .badge-cold { background: #0dcaf0; color: #000; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        .back-btn { display: none; }
+        @media (max-width: 767.98px) {
+            .back-btn { display: block; margin-right: 10px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="main-wrapper">
     <!-- Leads Sidebar -->
-    <div class="leads-sidebar">
+    <div class="leads-sidebar" id="leadsSidebar">
         <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0 text-primary">My Leads</h5>
-            <a href="../api/logout.php" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-left"></i></a>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary d-md-none" onclick="loadLeads()"><i class="bi bi-arrow-clockwise"></i></button>
+                <a href="../api/logout.php" class="btn btn-sm btn-outline-danger"><i class="bi bi-box-arrow-left"></i></a>
+            </div>
         </div>
         <div class="p-2">
             <input type="text" class="form-control form-control-sm" placeholder="Search leads...">
@@ -57,7 +105,7 @@ $tenant_id = getTenantId();
     </div>
 
     <!-- Chat Area -->
-    <div class="chat-area">
+    <div class="chat-area" id="chatArea">
         <div id="noChatSelected" class="h-100 d-flex flex-column align-items-center justify-content-center text-center p-5">
             <div class="mb-4" style="font-size: 5rem; opacity: 0.2;"><i class="bi bi-whatsapp"></i></div>
             <h4>WhatsApp Lead Manager</h4>
@@ -67,12 +115,15 @@ $tenant_id = getTenantId();
         <div id="chatContent" class="h-100 flex-column" style="display: none !important;">
             <div class="chat-header">
                 <div class="d-flex align-items-center">
-                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px;">
-                        <i class="bi bi-person text-white fs-4"></i>
+                    <button class="btn text-white p-0 back-btn" onclick="backToList()">
+                        <i class="bi bi-arrow-left fs-4"></i>
+                    </button>
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2 me-md-3" style="width: 40px; height: 40px;">
+                        <i class="bi bi-person text-white fs-5"></i>
                     </div>
                     <div>
-                        <h5 class="mb-0 fw-bold" id="chatLeadName">Name</h5>
-                        <small class="text-secondary" id="chatLeadNumber">Number</small>
+                        <h6 class="mb-0 fw-bold" id="chatLeadName">Name</h6>
+                        <small class="text-secondary" style="font-size: 0.7rem;" id="chatLeadNumber">Number</small>
                     </div>
                 </div>
                 <div class="d-flex gap-2">
@@ -140,6 +191,12 @@ function selectLead(id, name, number, status, tag) {
 
     $('#noChatSelected').attr('style', 'display: none !important');
     $('#chatContent').attr('style', 'display: flex !important');
+    
+    // Mobile toggle
+    if ($(window).width() < 768) {
+        $('#leadsSidebar').addClass('hide-mobile');
+        $('#chatArea').addClass('show-mobile');
+    }
 
     $('#chatLeadName').text(name || number);
     $('#chatLeadNumber').text('+' + number);
@@ -148,6 +205,13 @@ function selectLead(id, name, number, status, tag) {
     $('#updateTag').val(tag);
 
     loadChatHistory(id);
+}
+
+function backToList() {
+    $('#leadsSidebar').removeClass('hide-mobile');
+    $('#chatArea').removeClass('show-mobile');
+    currentLeadId = null;
+    $('.lead-item').removeClass('active');
 }
 
 function loadChatHistory(id) {

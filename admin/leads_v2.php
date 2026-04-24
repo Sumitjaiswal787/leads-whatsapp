@@ -14,9 +14,42 @@ $tenant_id = getTenantId();
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #25D366; --dark: #121212; --card-bg: #1e1e1e; }
-        body { font-family: 'Outfit', sans-serif; background: var(--dark); color: #fff; }
-        .sidebar { background: #181818; min-height: 100vh; position: fixed; width: 250px; border-right: 1px solid #333; }
-        .main-content { margin-left: 250px; padding: 40px; }
+        body { font-family: 'Outfit', sans-serif; background: var(--dark); color: #fff; overflow-x: hidden; }
+        
+        .sidebar { 
+            background: #181818; 
+            min-height: 100vh; 
+            position: fixed; 
+            width: 250px; 
+            border-right: 1px solid #333; 
+            z-index: 1001;
+            transition: all 0.3s;
+        }
+        
+        .main-content { 
+            margin-left: 250px; 
+            padding: 40px; 
+            transition: all 0.3s;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                margin-left: -250px;
+            }
+            .sidebar.show {
+                margin-left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+                padding-top: 80px;
+            }
+            .stat-card {
+                padding: 15px;
+            }
+        }
+
         .stat-card { background: var(--card-bg); border-radius: 15px; padding: 25px; border: 1px solid #333; }
         .table { color: #fff; }
         .table thead th { border-color: #333; color: #888; text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid #333; }
@@ -28,17 +61,66 @@ $tenant_id = getTenantId();
         .status-Closed { background: rgba(108, 117, 125, 0.1); color: #6c757d; }
         .modal-content { background: var(--card-bg); color: #fff; border: 1px solid #333; }
         .form-select { background: #2a2a2a; border: 1px solid #444; color: #fff; }
+
+        /* Mobile Navbar */
+        .mobile-nav {
+            display: none;
+            background: #181818;
+            padding: 15px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+
+        @media (max-width: 991.98px) {
+            .mobile-nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .sidebar-overlay.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
 
-<div class="sidebar d-none d-lg-block">
-    <div class="p-4 text-center">
+<!-- Mobile Navbar -->
+<div class="mobile-nav">
+    <h4 class="fw-bold text-primary mb-0">Grabber <small class="fs-6 text-secondary">v2</small></h4>
+    <button class="btn text-white p-0" id="sidebarToggle">
+        <i class="bi bi-list fs-2"></i>
+    </button>
+</div>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="sidebar" id="sidebar">
+    <div class="p-4 text-center d-none d-lg-block">
         <h3 class="fw-bold text-primary">Grabber <small class="fs-6 text-secondary">v2</small></h3>
     </div>
     <div class="list-group list-group-flush mt-4">
         <a href="dashboard.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
             <i class="bi bi-speedometer2 me-2"></i> Dashboard
+        </a>
+        <a href="meta_settings.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
+            <i class="bi bi-facebook me-2"></i> Meta Settings
         </a>
         <a href="leads_v2.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3 active">
             <i class="bi bi-people me-2"></i> Leads
@@ -300,6 +382,18 @@ function deleteLead(leadId) {
 }
 
 $(document).ready(function() {
+    // Sidebar Toggle
+    $('#sidebarToggle, #sidebarOverlay').on('click', function() {
+        $('#sidebar, #sidebarOverlay').toggleClass('show');
+    });
+
+    // Close sidebar when clicking a link on mobile
+    $('.sidebar .list-group-item').on('click', function() {
+        if ($(window).width() < 992) {
+            $('#sidebar, #sidebarOverlay').removeClass('show');
+        }
+    });
+
     loadStaffOptions();
     loadLeads();
     setInterval(loadLeads, 15000); // Auto refresh every 15s

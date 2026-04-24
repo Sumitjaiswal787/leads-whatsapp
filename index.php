@@ -34,6 +34,13 @@
             max-width: 450px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.2);
         }
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 25px 20px;
+                border-radius: 15px;
+                margin: 15px;
+            }
+        }
         .form-control {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
