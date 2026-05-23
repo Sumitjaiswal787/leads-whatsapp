@@ -19,7 +19,7 @@ if ($is_local) {
     define('DB_PASS', '');
     define('DB_NAME', 'whatsapp_crm');
     define('BASE_URL', 'http://localhost:8080/');
-    define('BACKEND_URL', 'http://localhost:3000');
+    define('BACKEND_URL', 'http://localhost:3001');
 } else {
     // HOSTINGER SETTINGS (Production)
     define('DB_HOST', 'localhost');
