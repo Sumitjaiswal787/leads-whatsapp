@@ -319,10 +319,19 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
 /**
  * API Endpoint: Initialize Session
  */
-app.post('/session/init', (req, res) => {
-    const { sessionId, userId, phoneNumber } = req.body;
-    console.log(`[INIT] Session request received - ID: ${sessionId}, User: ${userId}, Phone: ${phoneNumber || 'None'}`);
-    if (!sessionId || !userId) return res.status(400).json({ success: false, message: 'Missing params' });
+app.post('/api/sessions/init', (req, res) => {
+    const { sessionId, phoneNumber, secret } = req.body;
+    const userId = req.body.userId || req.body.tenantId || '1';
+    
+    console.log(`[INIT] Session request received - ID: ${sessionId}, User/Tenant: ${userId}, Phone: ${phoneNumber || 'None'}`);
+    
+    if (secret !== 'whatsapp_crm_secret_2026') {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!sessionId || !userId) {
+        return res.status(400).json({ success: false, message: 'Missing required parameters: sessionId or tenantId' });
+    }
 
     initWhatsAppClient(sessionId, userId, phoneNumber);
     res.json({ success: true, message: 'Initialization started' });
@@ -331,8 +340,17 @@ app.post('/session/init', (req, res) => {
 /**
  * API Endpoint: Delete Session
  */
-app.post('/session/delete', async (req, res) => {
-    const { sessionId } = req.body;
+app.post('/api/sessions/delete', async (req, res) => {
+    const { sessionId, secret } = req.body;
+    
+    if (secret !== 'whatsapp_crm_secret_2026') {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!sessionId) {
+        return res.status(400).json({ success: false, message: 'Missing required parameter: sessionId' });
+    }
+
     if (clients.has(sessionId)) {
         const client = clients.get(sessionId);
         try {
@@ -350,6 +368,42 @@ app.post('/session/delete', async (req, res) => {
         }
     }
     res.json({ success: true, message: 'Session deleted' });
+});
+
+/**
+ * API Endpoint: Send Message
+ */
+app.post('/api/messages/send', async (req, res) => {
+    const { sessionId, number, message, secret } = req.body;
+    console.log(`[API] Received send message request for session: ${sessionId}, number: ${number}`);
+    
+    if (secret !== 'whatsapp_crm_secret_2026') {
+        console.warn(`[API] Unauthorized send message attempt for session: ${sessionId}`);
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!sessionId || !number || !message) {
+        return res.status(400).json({ error: 'Missing required parameters: sessionId, number, or message' });
+    }
+
+    if (!clients.has(sessionId)) {
+        return res.status(404).json({ success: false, error: 'Session not found or not active' });
+    }
+
+    try {
+        const client = clients.get(sessionId);
+        
+        let formattedNumber = number;
+        if (!formattedNumber.endsWith('@c.us')) {
+            formattedNumber = `${formattedNumber}@c.us`;
+        }
+
+        await client.sendMessage(formattedNumber, message);
+        res.json({ success: true, message: 'Message sent successfully' });
+    } catch (error) {
+        console.error(`[API] Send message failed for session ${sessionId}:`, error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 httpServer.listen(port, () => {
