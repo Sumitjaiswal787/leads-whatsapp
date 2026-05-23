@@ -224,6 +224,25 @@ $staff_limit = $plan['max_staff'];
         </div>
     </div>
 
+    <!-- Meta Lead Ads Integration Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card border-info border-opacity-25" style="background: rgba(0, 123, 255, 0.05);">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <h5 class="fw-bold mb-1 text-info"><i class="bi bi-facebook me-2"></i> Facebook Lead Ads Sync</h5>
+                        <p class="text-secondary mb-0 small">Connect Facebook Graph API to automatically collect name, phone, and project source info from Click-to-WhatsApp ads.</p>
+                    </div>
+                    <div>
+                        <a href="meta_settings.php" class="btn btn-info text-white px-4 fw-bold">
+                            <i class="bi bi-gear me-2"></i> Go to Meta Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats -->
     <div class="row g-4 mb-5">
         <div class="col-md-4">

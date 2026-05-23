@@ -43,6 +43,9 @@ $tenant_id = getTenantId();
         <a href="dashboard.php#sessions" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
             <i class="bi bi-whatsapp me-2"></i> WhatsApp Sessions
         </a>
+        <a href="meta_settings.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3">
+            <i class="bi bi-facebook me-2"></i> Meta Settings
+        </a>
         <a href="leads.php" class="list-group-item list-group-item-action bg-transparent text-white border-0 p-3 active">
             <i class="bi bi-people me-2"></i> Leads
         </a>
