@@ -10,6 +10,7 @@ const fs = require('fs');
 const puppeteer = require('puppeteer');
 const http = require('http');
 const { Server } = require('socket.io');
+const metaHandler = require('./metaHandler');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -38,6 +39,10 @@ const SHARED_SECRET = process.env.SHARED_SECRET || "a_secure_shared_secret_here"
 const PHP_CALLBACK_URL = process.env.PHP_CALLBACK_URL || "http://localhost:8000/api/callback.php";
 
 app.use(bodyParser.json());
+
+// Meta Webhook Routes
+app.get('/webhooks/meta', (req, res) => metaHandler.verifyWebhook(req, res));
+app.post('/webhooks/meta', (req, res) => metaHandler.handleWebhook(req, res));
 
 /**
  * Mock WhatsApp Client for Bypassing Authentication
