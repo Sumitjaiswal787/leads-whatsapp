@@ -251,10 +251,28 @@ function loadLeads() {
             let html = '';
             leads.forEach(l => {
                 const safeNumber = l.number.toString();
+                
+                // Determine Source Badge
+                let sourceBadge = '';
+                if (l.source === 'meta') {
+                    sourceBadge = `<span class="badge ms-2" style="font-size: 0.7rem; background-color: #1877F2; color: #fff; padding: 3px 8px; border-radius: 4px;"><i class="bi bi-facebook me-1"></i>Meta</span>`;
+                } else {
+                    sourceBadge = `<span class="badge ms-2" style="font-size: 0.7rem; background-color: #25D366; color: #fff; padding: 3px 8px; border-radius: 4px;"><i class="bi bi-whatsapp me-1"></i>WhatsApp</span>`;
+                }
+
+                // Determine Project Tag
+                let projectTag = '';
+                if (l.project_name) {
+                    projectTag = `<div class="text-secondary small mt-1" style="font-size: 0.8rem;"><i class="bi bi-folder-fill text-warning me-1"></i>${l.project_name}</div>`;
+                }
+
                 html += `
                     <tr>
                         <td class="small text-secondary">${l.created_at}</td>
-                        <td class="fw-bold">${l.name || 'Anonymous'}</td>
+                        <td>
+                            <div class="fw-bold d-flex align-items-center flex-wrap">${l.name || 'Anonymous'}${sourceBadge}</div>
+                            ${projectTag}
+                        </td>
                         <td class="td-number">${safeNumber}</td>
                         <td title="${l.last_message}">${l.last_message.substring(0, 40)}${l.last_message.length > 40 ? '...' : ''}</td>
                         <td><span class="status-badge status-${l.status}">${l.status}</span></td>
@@ -284,6 +302,8 @@ function exportToExcel() {
     const data = currentLeads.map(l => ({
         'Captured At': l.created_at,
         'Name': l.name || 'Anonymous',
+        'Source': l.source || 'whatsapp',
+        'Project Name': l.project_name || '',
         'Number': l.number,
         'Last Message': l.last_message,
         'Status': l.status,
@@ -317,13 +337,14 @@ function exportToPDF() {
     const doc = new jsPDF('l', 'mm', 'a4');
 
     doc.setFontSize(18);
-    doc.text("WhatsApp Leads Report", 14, 20);
+    doc.text("WhatsApp & Meta Leads Report", 14, 20);
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
 
     const tableData = currentLeads.map(l => [
         l.created_at,
-        l.name || 'Anonymous',
+        `${l.name || 'Anonymous'} (${l.source || 'whatsapp'})`,
+        l.project_name || '-',
         l.number,
         l.last_message.substring(0, 50),
         l.status,
@@ -332,18 +353,19 @@ function exportToPDF() {
 
     doc.autoTable({
         startY: 35,
-        head: [['Date', 'Name', 'Number', 'Last Message', 'Status', 'Assigned To']],
+        head: [['Date', 'Name (Source)', 'Project Name', 'Number', 'Last Message', 'Status', 'Assigned To']],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [37, 211, 102] },
         styles: { fontSize: 8, cellPadding: 2 },
         columnStyles: {
-            0: { cellWidth: 35 },
+            0: { cellWidth: 30 },
             1: { cellWidth: 35 },
-            2: { cellWidth: 40 },
-            3: { cellWidth: 'auto' },
-            4: { cellWidth: 20 },
-            5: { cellWidth: 30 }
+            2: { cellWidth: 35 },
+            3: { cellWidth: 35 },
+            4: { cellWidth: 'auto' },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 25 }
         }
     });
 

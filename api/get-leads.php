@@ -8,7 +8,7 @@ $role = $_SESSION['role'];
 // Filter by staff if not admin
 $sql = "SELECT l.*, s.session_id as session_logical_id 
         FROM leads l 
-        JOIN whatsapp_sessions s ON l.session_id = s.id 
+        LEFT JOIN whatsapp_sessions s ON l.session_id = s.id 
         WHERE l.tenant_id = ?";
 $params = [$tenant_id];
 $types = "i";

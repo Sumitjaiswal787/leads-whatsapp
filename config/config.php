@@ -10,7 +10,7 @@ ini_set('log_errors', 1);
 
 // Database Configuration (Dynamic Environment Detection)
 $is_local = (isset($_SERVER['HTTP_HOST']) && ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['HTTP_HOST'] === 'localhost:8080' || $_SERVER['HTTP_HOST'] === '127.0.0.1')) 
-            || (php_sapi_name() === 'cli'); 
+            || (php_sapi_name() === 'cli' && strpos(__DIR__, 'u828453283') === false); 
 
 if ($is_local) {
     // LOCAL SETTINGS (XAMPP / Local Dev)
