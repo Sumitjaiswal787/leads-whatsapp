@@ -167,6 +167,24 @@ $settings = $stmt->get_result()->fetch_assoc();
     <div class="row">
         <div class="col-lg-8">
             <div class="settings-card">
+                <!-- Facebook Connect Helper Panel -->
+                <div class="p-4 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 mb-4">
+                    <h5 class="fw-bold text-primary mb-2"><i class="bi bi-facebook me-2"></i> Auto-Connect Facebook Page</h5>
+                    <p class="text-secondary small mb-3">Instead of copying IDs and tokens manually, enter your Facebook App ID below and connect directly via Facebook Graph API.</p>
+                    <div class="row g-3 align-items-end mb-1">
+                        <div class="col-md-7">
+                            <label class="form-label small text-secondary fw-bold">Facebook App ID</label>
+                            <input type="text" id="fb_app_id" class="form-control" placeholder="e.g. 129384857692">
+                        </div>
+                        <div class="col-md-5">
+                            <button type="button" class="btn btn-primary w-100 py-2 fw-bold" id="fb-login-btn">
+                                <i class="bi bi-facebook me-2"></i> Connect Page
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-text text-secondary mt-2 small">Your App ID is stored locally in your browser for convenience.</div>
+                </div>
+
                 <form action="meta_settings.php" method="POST">
                     <div class="mb-4">
                         <label class="form-label fw-bold">Facebook Page ID</label>
@@ -177,7 +195,7 @@ $settings = $stmt->get_result()->fetch_assoc();
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Graph API User Access Token</label>
+                        <label class="form-label fw-bold">Graph API User/Page Access Token</label>
                         <textarea name="fb_access_token" class="form-control" rows="4" 
                                   placeholder="EAAb... " required><?= htmlspecialchars($settings['fb_access_token'] ?? '') ?></textarea>
                         <div class="form-text text-secondary">Ensure this token has <code>pages_manage_ads</code>, <code>leads_retrieval</code>, and <code>pages_show_list</code> permissions. It is recommended to use a Long-Lived System User Token.</div>
@@ -217,10 +235,50 @@ $settings = $stmt->get_result()->fetch_assoc();
     </div>
 </div>
 
+<!-- Modal: Facebook Page Selection -->
+<div class="modal fade" id="fbPageModal" tabindex="-1" aria-labelledby="fbPageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="fbPageModalLabel"><i class="bi bi-facebook text-primary me-2"></i> Select Facebook Page</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary small">Choose the Facebook Page you want to connect to receive lead forms advertisements information.</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Your Facebook Pages</label>
+                    <select id="fb-page-select" class="form-select form-control">
+                        <!-- Options dynamically loaded -->
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-confirm-page">Select and Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// Load the Facebook SDK asynchronously
+(function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "https://connect.facebook.net/en_US/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
+
 $(document).ready(function() {
+    // Load cached App ID from localStorage
+    const cachedAppId = localStorage.getItem('fb_app_id');
+    if (cachedAppId) {
+        $('#fb_app_id').val(cachedAppId);
+    }
+
     // Sidebar Toggle
     $('#sidebarToggle, #sidebarOverlay').on('click', function() {
         $('#sidebar, #sidebarOverlay').toggleClass('show');
@@ -231,6 +289,97 @@ $(document).ready(function() {
         if ($(window).width() < 992) {
             $('#sidebar, #sidebarOverlay').removeClass('show');
         }
+    });
+
+    // Initialize Facebook Login when the connect button is clicked
+    $('#fb-login-btn').on('click', function() {
+        const appId = $('#fb_app_id').val().trim();
+        if (!appId) {
+            alert('Please enter your Facebook App ID first to initialize Facebook Login.');
+            return;
+        }
+        
+        // Save App ID to localStorage for convenience
+        localStorage.setItem('fb_app_id', appId);
+
+        try {
+            // Initialize the FB SDK
+            FB.init({
+                appId      : appId,
+                cookie     : true,
+                xfbml      : true,
+                version    : 'v21.0'
+            });
+
+            // Launch FB Login dialog
+            FB.login(function(response) {
+                if (response.authResponse) {
+                    const userAccessToken = response.authResponse.accessToken;
+                    console.log('[FB] Successfully logged in with Facebook. User Token obtained.');
+                    fetchUserPages(userAccessToken);
+                } else {
+                    alert('Facebook Login cancelled or not fully authorized.');
+                }
+            }, {
+                scope: 'pages_show_list,pages_read_engagement,pages_manage_ads,leads_retrieval',
+                return_scopes: true
+            });
+        } catch (err) {
+            console.error('[FB] Init Error:', err);
+            alert('Error initializing Facebook Login: ' + err.message);
+        }
+    });
+
+    // Fetch Pages using User Access Token
+    function fetchUserPages(userAccessToken) {
+        $('#fb-login-btn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Loading Pages...');
+        
+        FB.api('/me/accounts', { access_token: userAccessToken }, function(response) {
+            $('#fb-login-btn').prop('disabled', false).html('<i class="bi bi-facebook me-2"></i> Connect Page');
+            
+            if (response.error) {
+                alert('Error fetching pages: ' + response.error.message);
+                return;
+            }
+
+            const pages = response.data;
+            if (!pages || pages.length === 0) {
+                alert('No Facebook Pages found associated with your account. Make sure you are an administrator of at least one page.');
+                return;
+            }
+
+            // Build a Page selection dropdown in a modal
+            let pageOptionsHtml = '<option value="" disabled selected>-- Select a Facebook Page --</option>';
+            pages.forEach(page => {
+                pageOptionsHtml += `<option value="${page.id}" data-token="${page.access_token}">${page.name} (${page.category})</option>`;
+            });
+
+            $('#fb-page-select').html(pageOptionsHtml);
+            
+            // Show the page selection modal
+            const pageModal = new bootstrap.Modal(document.getElementById('fbPageModal'));
+            pageModal.show();
+        });
+    }
+
+    // When a page is selected, populate the form inputs
+    $('#btn-confirm-page').on('click', function() {
+        const selectedOption = $('#fb-page-select option:selected');
+        const pageId = selectedOption.val();
+        const pageToken = selectedOption.data('token');
+
+        if (!pageId) {
+            alert('Please select a Facebook Page.');
+            return;
+        }
+
+        $('input[name="fb_page_id"]').val(pageId);
+        $('textarea[name="fb_access_token"]').val(pageToken);
+
+        // Hide modal
+        bootstrap.Modal.getInstance(document.getElementById('fbPageModal')).hide();
+        
+        alert('Successfully imported Facebook Page ID and Page Access Token! Click "Save Settings" below to save them permanently.');
     });
 });
 </script>
