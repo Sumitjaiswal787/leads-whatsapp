@@ -8,8 +8,31 @@ const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const puppeteer = require('puppeteer');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: ["https://whatsapp.tezikaro.com", "http://localhost:3000", "http://localhost:8080"],
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log(`[Socket] New client connected: ${socket.id}`);
+    
+    socket.on('subscribe', (sessionId) => {
+        socket.join(sessionId);
+        console.log(`[Socket] Client ${socket.id} subscribed to room: ${sessionId}`);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log(`[Socket] Client disconnected: ${socket.id}`);
+    });
+});
 const port = process.env.PORT || 3001;
 const SHARED_SECRET = process.env.SHARED_SECRET || "a_secure_shared_secret_here";
 const PHP_CALLBACK_URL = process.env.PHP_CALLBACK_URL || "http://localhost:8000/api/callback.php";
@@ -81,11 +104,18 @@ async function updatePHPStatus(sessionId, updateData) {
     }
 }
 
+function broadcastStatus(sessionId, status) {
+    console.log(`[Socket] Broadcasting status: ${status} for session: ${sessionId}`);
+    io.to(sessionId).emit('status', { sessionId, status });
+}
+
 /**
  * Initialize a WhatsApp Client
  */
 function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
     if (clients.has(sessionId)) return clients.get(sessionId);
+
+    broadcastStatus(sessionId, 'initializing');
 
     // Bypassing / Mock Mode: phoneNumber === 'mock'
     if (phoneNumber === 'mock') {
@@ -97,6 +127,7 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
                 name: 'Test Account (Bypassed)', 
                 number: '917324838976' 
             });
+            broadcastStatus(sessionId, 'connected');
         });
 
         client.initialize();
@@ -187,11 +218,16 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
         qrcodeTerminal.generate(qr, { small: true });
         const qrBase64 = await qrcode.toDataURL(qr);
         updatePHPStatus(sessionId, { status: 'qr_ready', qr: qrBase64 });
+        
+        console.log(`[Socket] Broadcasting QR for session: ${sessionId}`);
+        io.to(sessionId).emit('qr', { sessionId, qr: qr });
+        broadcastStatus(sessionId, 'qr_ready');
     });
 
     client.on('code', async (code) => {
         console.log(`[${sessionId}] Pairing Code: ${code}`);
         updatePHPStatus(sessionId, { status: 'pairing_ready', pairingCode: code });
+        broadcastStatus(sessionId, 'pairing_ready');
     });
 
     client.on('ready', async () => {
@@ -208,6 +244,7 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
                 name: name, 
                 number: number 
             });
+            broadcastStatus(sessionId, 'connected');
 
             // Start History Sync
             syncChatHistory(client, sessionId, userId);
@@ -215,6 +252,7 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
         } catch (e) {
             console.error(`[${sessionId}] Error getting client info:`, e.message);
             updatePHPStatus(sessionId, { status: 'connected' });
+            broadcastStatus(sessionId, 'connected');
         }
     });
 
@@ -258,17 +296,20 @@ function initWhatsAppClient(sessionId, userId, phoneNumber = null) {
     client.on('disconnected', (reason) => {
         console.log(`[${sessionId}] Client disconnected:`, reason);
         updatePHPStatus(sessionId, { status: 'disconnected' });
+        broadcastStatus(sessionId, 'disconnected');
         clients.delete(sessionId);
     });
 
     client.on('auth_failure', (msg) => {
         console.error(`[${sessionId}] Authentication failure:`, msg);
         updatePHPStatus(sessionId, { status: 'disconnected' });
+        broadcastStatus(sessionId, 'disconnected');
     });
 
     client.initialize().catch(err => {
         console.error(`[${sessionId}] FATAL Initialization failed:`, err);
         updatePHPStatus(sessionId, { status: 'disconnected' });
+        broadcastStatus(sessionId, 'disconnected');
     });
 
     clients.set(sessionId, client);
@@ -311,6 +352,6 @@ app.post('/session/delete', async (req, res) => {
     res.json({ success: true, message: 'Session deleted' });
 });
 
-app.listen(port, () => {
+httpServer.listen(port, () => {
     console.log(`Worker service listening at http://localhost:${port}`);
 });
