@@ -93,6 +93,29 @@ app.post('/api/sessions/init', async (req, res) => {
     }
 });
 
+// Send Message
+app.post('/api/messages/send', async (req, res) => {
+    const { sessionId, number, message, secret } = req.body;
+    console.log(`[API] Received send message request for session: ${sessionId}, number: ${number}`);
+    
+    if (secret !== 'whatsapp_crm_secret_2026') {
+        console.warn(`[API] Unauthorized send message attempt for session: ${sessionId}`);
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!sessionId || !number || !message) {
+        return res.status(400).json({ error: 'Missing required parameters: sessionId, number, or message' });
+    }
+
+    try {
+        await sessionManager.sendMessage(sessionId, number, message);
+        res.json({ success: true, message: 'Message sent successfully' });
+    } catch (error) {
+        console.error(`[API] Send message failed for session ${sessionId}:`, error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Socket.io connection
 io.on('connection', (socket) => {
     console.log('[Socket] New client connected:', socket.id);
